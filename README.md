@@ -32,3 +32,4 @@ Steps to set it up:
   * If you want to check, you can by using the inspector network panel and poking around the newsletter admin setting until the slug pops up.
 * Change the tag to whatever you want.
 * Change the URLs for the bookmark cards. The icon should be a youtube logo and the thumbnail should be a default thumbnail image.
+* Add a cron job to run the script in the background.
