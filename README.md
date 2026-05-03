@@ -2,9 +2,7 @@
 
 Scripts for extending [Ghost](https://ghost.org/) functionality on [Joel+](https://joelplus.com).
 
-## Scripts
-
-### `crosspost-youtube-posts.sh`
+## `crosspost-youtube-posts.sh`
 
 Checks YouTube for new Community posts and cross-posts them to Ghost.
 
@@ -32,22 +30,27 @@ Checks YouTube for new Community posts and cross-posts them to Ghost.
 
 ### Setup
 
-**Edit the variables at the top of the script:**
+#### Edit the variables at the top of the script
 
 1. Set your YouTube channel ID.
-   This is not your `@handle`. Use a YouTube channel ID finder if needed.
+   This is not your `@handle`. Use a YouTube channel ID finder if needed. At time of writing, [this one worked for me.](https://www.nicheprowler.com/tools/youtube/youtube-channel-id-finder)
 2. Set `SCRIPT_DIR` to the directory where the script lives.
 3. Set `GHOST_URL` to your Ghost instance URL.
 4. Create a Ghost Admin API key:
-   `Ghost Admin → Settings → Integrations → Custom Integrations → Add Custom Integration`
-   Then copy the Admin API key into the script.
+   - `Ghost Admin → Settings → Integrations → Custom Integrations → Add Custom Integration`
+   - Copy the Admin API key into the script.
 5. Set your Ghost newsletter slug.
-   If you use the default newsletter, the default value may already work.
-6. Set the Ghost tag used for cross-posted YouTube posts.
-7. Update the bookmark card URLs.
-   - Icon: YouTube logo
-   - Thumbnail: default fallback image
-8. Run the script in --init mode to populate post IDs.
-9. Create a new YouTube community post.
-10. Run the script in --test mode to ensure it makes a post to your Ghost instance.
-11. Add a cron job to run the script automatically.
+   - If you use the default newsletter, the default value may already work.
+   - You can verify this by poking around in the F12 inspector while editing the newsletter setting in the admin settings, looking for the newsletter slug.
+7. Set the Ghost tag used for cross-posted YouTube posts if you want it to be different from the default.
+8. Update the bookmark card URLs.
+   - Icon: YouTube logo (included in repo)
+   - Thumbnail: default image if post is not an image post.
+   - You can probably generate these automatically by manually creating a draft post with a /bookmark card of an existing YouTube text post, then inspecting the element and copying the URLs of the images.
+
+#### Initialize and Test the script
+
+1. Run the script in --init mode to populate post IDs.
+2. Create a new YouTube community post (or edit the seen post file to remove one of the posts).
+3. Run the script in --test mode to ensure it makes a draft post to your Ghost instance.
+4. Add a cron job to run the script automatically. I haven't had any issues with having it run every minute.
