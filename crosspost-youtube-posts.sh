@@ -21,8 +21,8 @@ GHOST_ADMIN_KEY="69f38afa185357000127881c:33f041f88ddf57e21f2902f708bad68fd75186
 GHOST_NEWSLETTER_SLUG="default-newsletter"
 GHOST_TAG="YT Community Posts"
 
-BOOKMARK_ICON="https://joelplus.com/content/images/icon/favicon_144x144-2.png"
-BOOKMARK_THUMBNAIL="https://joelplus.com/content/images/thumbnail/LwijQC7qvbNlAbH2zrBtH4qrklO7NXDCo0-CXeOE3uBQwXpkIflLFG2fZJL0j65TMePrdlh09N_sBg-s1440-c-fcrop64-1-0000106bffffd06a-nd-v1-2"
+BOOKMARK_ICON="https://joelplus.com/YT-Icon.png"
+BOOKMARK_THUMBNAIL="https://joelplus.com/default-thumbnail-thing"
 
 mkdir -p "$SCRIPT_DIR"
 touch "$SEEN_FILE"
