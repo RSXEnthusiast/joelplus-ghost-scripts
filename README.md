@@ -1,7 +1,7 @@
 # joelplus-ghost-scripts
 Any scripts I've written to extend Ghost functionality for Joel+
 
-### check-youtube-post.sh
+### crosspost-youtube-posts.sh
 
 This file will check YouTube for a new community post. If it finds one, it will crosspost that post to Ghost.
 
