@@ -2,10 +2,13 @@
 set -euo pipefail
 
 TEST_MODE=0
+INIT_MODE=0
 if [[ "${1:-}" == "--test" ]]; then
   TEST_MODE=1
+elif [[ "${1:-}" == "--init" ]]; then
+  INIT_MODE=1
 elif [[ "${1:-}" != "" ]]; then
-  echo "Usage: $0 [--test]"
+  echo "Usage: $0 [--test|--init]"
   exit 1
 fi
 
@@ -221,6 +224,12 @@ for (( i=${#POST_ROWS[@]}-1; i>=0; i-- )); do
     continue
   fi
 
+  if [[ "$INIT_MODE" -eq 1 ]]; then
+    echo "INIT: marking $POST_ID as seen (no Ghost post created)"
+    echo "$POST_ID" >> "$SEEN_FILE"
+    continue
+  fi
+
   RAW_FIRST_LINE="${RAW_FIRST_LINE:-View this YouTube Community post.}"
   POST_IMAGE_URL="${POST_IMAGE_URL:-}"
   POST_TYPE="${POST_TYPE:-post}"
@@ -362,9 +371,15 @@ for (( i=${#POST_ROWS[@]}-1; i>=0; i-- )); do
 done
 
 if [[ "$NEW_COUNT" -eq 0 ]]; then
-  echo "No new YouTube Community posts."
+  if [[ "$INIT_MODE" -eq 1 ]]; then
+    echo "INIT: no new post IDs found to mark."
+  else
+    echo "No new YouTube Community posts."
+  fi
 elif [[ "$TEST_MODE" -eq 1 ]]; then
   echo "TEST MODE: created $NEW_COUNT draft Ghost post(s). No emails sent."
+elif [[ "$INIT_MODE" -eq 1 ]]; then
+  echo "INIT: marked $NEW_COUNT YouTube post ID(s) as seen. No Ghost posts created."
 else
   echo "Created and emailed $NEW_COUNT Ghost post(s)."
 fi
