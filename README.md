@@ -33,20 +33,21 @@ Checks YouTube for new Community posts and cross-posts them to Ghost.
 ### Setup
 
 **Edit the variables at the top of the script:**
-2. Set your YouTube channel ID.
+
+1. Set your YouTube channel ID.
    This is not your `@handle`. Use a YouTube channel ID finder if needed.
-3. Set `SCRIPT_DIR` to the directory where the script lives.
-4. Set `GHOST_URL` to your Ghost instance URL.
-5. Create a Ghost Admin API key:
+2. Set `SCRIPT_DIR` to the directory where the script lives.
+3. Set `GHOST_URL` to your Ghost instance URL.
+4. Create a Ghost Admin API key:
    `Ghost Admin → Settings → Integrations → Custom Integrations → Add Custom Integration`
    Then copy the Admin API key into the script.
-6. Set your Ghost newsletter slug.
+5. Set your Ghost newsletter slug.
    If you use the default newsletter, the default value may already work.
-7. Set the Ghost tag used for cross-posted YouTube posts.
-8. Update the bookmark card URLs.
+6. Set the Ghost tag used for cross-posted YouTube posts.
+7. Update the bookmark card URLs.
    - Icon: YouTube logo
    - Thumbnail: default fallback image
-9. Run the script in --init mode to populate post IDs.
-10. Create a new YouTube community post.
-11. Run the script in --test mode to ensure it makes a post to your Ghost instance.
-12. Add a cron job to run the script automatically.
+8. Run the script in --init mode to populate post IDs.
+9. Create a new YouTube community post.
+10. Run the script in --test mode to ensure it makes a post to your Ghost instance.
+11. Add a cron job to run the script automatically.
