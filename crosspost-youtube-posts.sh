@@ -17,7 +17,7 @@ SCRIPT_DIR="$HOME/scripts/ghost-scripts"
 SEEN_FILE="$SCRIPT_DIR/seen-youtube-post-ids.txt"
 
 GHOST_URL="https://joelplus.com"
-GHOST_ADMIN_KEY="69f38afa185357000127881c:33f041f88ddf57e21f2902f708bad68fd75186b369945c09419bde5f4643e720"
+GHOST_ADMIN_KEY="REPLACE"
 GHOST_NEWSLETTER_SLUG="default-newsletter"
 GHOST_TAG="YT Community Posts"
 
