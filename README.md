@@ -2,6 +2,8 @@
 
 Scripts for extending [Ghost](https://ghost.org/) functionality on [Joel+](https://joelplus.com).
 
+_AI was used to assist in the creation of these scripts. I have tested them and they seem to work well on my Ghost instance._
+
 ## `crosspost-youtube-posts.sh`
 
 Checks YouTube for new Community posts and cross-posts them to Ghost.
@@ -57,3 +59,56 @@ Checks YouTube for new Community posts and cross-posts them to Ghost.
 2. Create a new YouTube community post (or edit the seen post file to remove one of the posts).
 3. Run the script in --test mode to ensure it makes a draft post to your Ghost instance.
 4. Add a cron job to run the script automatically. I haven't had any issues with having it run every minute.
+
+
+## `peertube-non-main-video-update-post.sh`
+
+Checks PeerTube instance for new videos from specified channels, makes a playlist containing those videos in chronological order, and creates a ghost post with that playlist embedded.
+
+#### Features
+
+- Supports `--test` mode:
+  - Creates a draft Ghost post instead of public ones.
+  - Does not add the PeerTube post ID to the seen-posts file.
+- Supports `--init` mode:
+  - Creates the seen posts file.
+  - Populates file with existing PeerTube posts.
+  - Does not make any draft or public posts to Ghost at all.
+- Stores seen PeerTube post IDs in a text file to prevent duplicate posts.
+- Tags Ghost posts with a specified tag.
+- Creates a PeerTube playlist automatically.
+- Embeds PeerTube playlist in ghost post.
+- Notifies Ghost members via email by publishing a draft, then changing the post to published.
+
+#### Known limitations
+
+- None at the moment.
+
+### Setup
+
+#### Edit the variables at the top of the script
+
+1. Set your PeerTube instance URL.
+2. Set the PeerTube channels you'd like to scan for new videos.
+3. Set your PeerTube username and password.
+6. Set playlist channel id.
+7. Set `GHOST_URL` to your Ghost instance URL.
+8. Create a Ghost Admin API key:
+   - `Ghost Admin → Settings → Integrations → Custom Integrations → Add Custom Integration`
+   - Copy the Admin API key into the script.
+9. Set your Ghost newsletter slug.
+   - If you use the default newsletter, the default value may already work.
+   - You can verify this by poking around in the F12 inspector while editing the newsletter setting in the admin settings, looking for the newsletter slug.
+10. Set the Ghost tag if you want it to be different from the default.
+11. Set the script dir.
+12. Customize the script to your liking.
+    - Variables at the top that weren't explicitely mentioned here can be modified, but don't need to be.
+    - Modify the section of code that creates the ghost post. ctrl+f for Sunday Sidecar to find this seciton, as this is what I titled my weekly post.
+
+#### Initialize and Test the script
+
+1. Run the script in --init mode to populate post IDs.
+2. Upload a new peertube video to one of the watched channels (or edit the seen post file to remove one of the posts).
+3. Run the script in --test mode to ensure it makes a draft post to your Ghost instance.
+4. Add a cron job to run the script automatically.
+
