@@ -2,7 +2,7 @@
 
 Scripts for extending [Ghost](https://ghost.org/) functionality on [Joel+](https://joelplus.com).
 
-_AI was used to assist in the creation of these scripts. I have tested them and they seem to work well on my Ghost instance._
+_LLMs were used to assist in the creation of these scripts. I have tested them and they seem to work well on my Ghost instance._
 
 ## Configuration
 
