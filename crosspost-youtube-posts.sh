@@ -32,8 +32,8 @@ GHOST_ADMIN_KEY="${GHOST_ADMIN_KEY:-}"
 GHOST_NEWSLETTER_SLUG="${GHOST_NEWSLETTER_SLUG:-default-newsletter}"
 GHOST_TAG="${YOUTUBE_GHOST_TAG:-YT Community Posts}"
 
-BOOKMARK_ICON="${YOUTUBE_BOOKMARK_ICON:-$GHOST_URL/YT-Icon.png}"
-BOOKMARK_THUMBNAIL="${YOUTUBE_BOOKMARK_THUMBNAIL:-$GHOST_URL/default-thumbnail-thing}"
+BOOKMARK_ICON="${YOUTUBE_BOOKMARK_ICON:-https://joelplus.com/YT-Icon.png}"
+BOOKMARK_THUMBNAIL="${YOUTUBE_BOOKMARK_THUMBNAIL:-https://joelplus.com/default-thumbnail-thing}"
 
 for var in CHANNEL_ID GHOST_URL GHOST_ADMIN_KEY; do
   if [[ -z "${!var}" ]]; then
