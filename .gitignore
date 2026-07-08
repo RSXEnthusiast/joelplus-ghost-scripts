@@ -1,2 +1,4 @@
 cron.log
 seen-youtube-post-ids.txt
+seen-peertube-video-ids.txt
+.env
