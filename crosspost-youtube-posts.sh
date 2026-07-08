@@ -121,7 +121,6 @@ def detect_post_type(block, image_candidates):
         "pollchoice",
         "pollchoiceborder",
         "pollheader",
-        "poll",
     ]
 
     image_poll_markers = [
@@ -210,11 +209,14 @@ for idx, match in enumerate(matches):
 
     post_type = detect_post_type(block, candidates)
 
+    has_joelplus_link = "joelplus.com" in block.lower()
+
     print(json.dumps({
         "post_id": post_id,
         "first_line": first_line,
         "image_url": image_url,
         "post_type": post_type,
+        "has_joelplus_link": has_joelplus_link,
     }, ensure_ascii=False))
 PY
 )
@@ -236,6 +238,7 @@ for (( i=${#POST_ROWS[@]}-1; i>=0; i-- )); do
   RAW_FIRST_LINE="$(printf '%s' "$ROW" | json_get "['first_line']")"
   POST_IMAGE_URL="$(printf '%s' "$ROW" | json_get "['image_url']")"
   POST_TYPE="$(printf '%s' "$ROW" | json_get "['post_type']")"
+  HAS_JOELPLUS_LINK="$(printf '%s' "$ROW" | json_get "['has_joelplus_link']")"
 
   if grep -Fxq "$POST_ID" "$SEEN_FILE"; then
     continue
@@ -270,7 +273,7 @@ for (( i=${#POST_ROWS[@]}-1; i>=0; i-- )); do
       ;;
   esac
 
-  if printf '%s' "$RAW_FIRST_LINE" | grep -Eiq 'https?://([^[:space:]/]+\.)?joelplus\.com|([^[:space:]/]+\.)?joelplus\.com'; then
+  if [[ "$HAS_JOELPLUS_LINK" == "True" ]]; then
     echo "Ignoring post because it links to joelplus.com: https://www.youtube.com/post/$POST_ID"
     echo "$POST_ID" >> "$SEEN_FILE"
     continue
