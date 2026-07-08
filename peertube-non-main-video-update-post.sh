@@ -109,10 +109,8 @@ if [[ "${#PEERTUBE_CHANNELS[@]}" -eq 0 || -z "${PEERTUBE_CHANNELS[0]}" ]]; then
 fi
 
 # State
-SCRIPT_DIR="${SCRIPT_DIR:-$HOME/scripts/ghost-scripts}"
-SEEN_FILE="$SCRIPT_DIR/seen-peertube-video-ids.txt"
+SEEN_FILE="$SCRIPT_SOURCE_DIR/seen-peertube-video-ids.txt"
 
-mkdir -p "$SCRIPT_DIR"
 touch "$SEEN_FILE"
 
 # ---------------------------------------------------------------------------

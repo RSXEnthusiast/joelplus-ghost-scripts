@@ -25,8 +25,7 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 CHANNEL_ID="${YOUTUBE_CHANNEL_ID:-}"
-SCRIPT_DIR="${SCRIPT_DIR:-$HOME/scripts/ghost-scripts}"
-SEEN_FILE="$SCRIPT_DIR/seen-youtube-post-ids.txt"
+SEEN_FILE="$SCRIPT_SOURCE_DIR/seen-youtube-post-ids.txt"
 
 GHOST_URL="${GHOST_URL:-}"
 GHOST_ADMIN_KEY="${GHOST_ADMIN_KEY:-}"
@@ -43,7 +42,6 @@ for var in CHANNEL_ID GHOST_URL GHOST_ADMIN_KEY; do
   fi
 done
 
-mkdir -p "$SCRIPT_DIR"
 touch "$SEEN_FILE"
 
 base64url() {
