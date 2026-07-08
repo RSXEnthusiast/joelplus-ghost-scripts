@@ -234,7 +234,11 @@ pt_ensure_playlist() {
       -F "privacy=$PLAYLIST_PRIVACY" \
       -F "videoChannelId=$PLAYLIST_CHANNEL_ID")" \
       || die "Playlist creation failed."
-    PLAYLIST_ID="$(printf '%s' "$resp" | json_get "['videoPlaylist']['id']")"
+    # Use the uuid, not the numeric id: PeerTube only allows numeric-id lookups
+    # for Public objects (to stop enumeration of Unlisted/Private ones) -- the
+    # uuid works for every privacy level, for both this read-back and the
+    # add-to-playlist calls below.
+    PLAYLIST_ID="$(printf '%s' "$resp" | json_get "['videoPlaylist']['uuid']")"
 
   elif [[ -z "$PLAYLIST_ID" ]]; then
     [[ -n "$PLAYLIST_CHANNEL_ID" ]] \
@@ -247,7 +251,7 @@ pt_ensure_playlist() {
       -F "privacy=$PLAYLIST_PRIVACY" \
       -F "videoChannelId=$PLAYLIST_CHANNEL_ID")" \
       || die "Playlist creation failed."
-    PLAYLIST_ID="$(printf '%s' "$resp" | json_get "['videoPlaylist']['id']")"
+    PLAYLIST_ID="$(printf '%s' "$resp" | json_get "['videoPlaylist']['uuid']")"
   fi
 
   # Read back canonical ids + display name (works for both created and existing).
