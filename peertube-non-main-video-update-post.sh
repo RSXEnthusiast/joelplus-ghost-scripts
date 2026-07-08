@@ -76,7 +76,18 @@ PLAYLIST_DATE_FMT="${PEERTUBE_PLAYLIST_DATE_FMT:-%B %-d, %Y}"        # dated mod
 
 PLAYLIST_ID="${PEERTUBE_PLAYLIST_ID:-}"
 PLAYLIST_NAME="${PEERTUBE_PLAYLIST_NAME:-New videos}"          # non-dated mode: name when creating
-PLAYLIST_CHANNEL_ID="${PEERTUBE_PLAYLIST_CHANNEL_ID:-}"  # numeric channel id, required to CREATE a public playlist
+PLAYLIST_CHANNEL_ID="${PEERTUBE_PLAYLIST_CHANNEL_ID:-}"  # numeric channel id, required to CREATE a playlist
+
+# Visibility of created playlists: Public, Unlisted, or Private (case-insensitive).
+# Maps to PeerTube's numeric privacy enum (1=Public, 2=Unlisted, 3=Private).
+PLAYLIST_VISIBILITY_RAW="${PEERTUBE_PLAYLIST_VISIBILITY:-Public}"
+case "$(echo "$PLAYLIST_VISIBILITY_RAW" | tr '[:upper:]' '[:lower:]')" in
+  public)   PLAYLIST_PRIVACY=1 ;;
+  unlisted) PLAYLIST_PRIVACY=2 ;;
+  private)  PLAYLIST_PRIVACY=3 ;;
+  *) echo "ERROR: PEERTUBE_PLAYLIST_VISIBILITY must be Public, Unlisted, or Private (got '$PLAYLIST_VISIBILITY_RAW')." >&2
+     exit 1 ;;
+esac
 
 # How many recent videos to inspect per channel each run (newest first).
 FETCH_COUNT="${PEERTUBE_FETCH_COUNT:-100}"
@@ -220,20 +231,20 @@ pt_ensure_playlist() {
     resp="$(curl -fsS -X POST "$PEERTUBE_URL/api/v1/video-playlists" \
       -H "Authorization: Bearer $PT_TOKEN" \
       -F "displayName=$dated_name" \
-      -F "privacy=1" \
+      -F "privacy=$PLAYLIST_PRIVACY" \
       -F "videoChannelId=$PLAYLIST_CHANNEL_ID")" \
       || die "Playlist creation failed."
     PLAYLIST_ID="$(printf '%s' "$resp" | json_get "['videoPlaylist']['id']")"
 
   elif [[ -z "$PLAYLIST_ID" ]]; then
     [[ -n "$PLAYLIST_CHANNEL_ID" ]] \
-      || die "PLAYLIST_ID is empty and PLAYLIST_CHANNEL_ID is unset, so a public playlist can't be created."
+      || die "PLAYLIST_ID is empty and PLAYLIST_CHANNEL_ID is unset, so a playlist can't be created."
     echo "Creating playlist \"$PLAYLIST_NAME\" ..."
     local resp
     resp="$(curl -fsS -X POST "$PEERTUBE_URL/api/v1/video-playlists" \
       -H "Authorization: Bearer $PT_TOKEN" \
       -F "displayName=$PLAYLIST_NAME" \
-      -F "privacy=1" \
+      -F "privacy=$PLAYLIST_PRIVACY" \
       -F "videoChannelId=$PLAYLIST_CHANNEL_ID")" \
       || die "Playlist creation failed."
     PLAYLIST_ID="$(printf '%s' "$resp" | json_get "['videoPlaylist']['id']")"
