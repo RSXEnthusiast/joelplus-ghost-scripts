@@ -39,62 +39,77 @@ elif [[ "${1:-}" != "" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# CONFIG
+# CONFIG (loaded from .env next to this script — see .env.example)
 # ---------------------------------------------------------------------------
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${ENV_FILE:-$SCRIPT_SOURCE_DIR/.env}"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
 
 # PeerTube instance (no trailing slash) and the channels to watch.
 # Channel handles are the local channel "name" (the part before @ in a handle),
 # e.g. for joel_channel@joeltube.com you put "joel_channel".
-PEERTUBE_URL="https://joeltube.com"
-PEERTUBE_CHANNELS=(
-  "menko_the_cat"
-  "joel_kalich_walks"
-  "joels_junk"
-  "joel_kalich_drums"
-  "joelk111_gaming"
-)
+PEERTUBE_URL="${PEERTUBE_URL:-}"
+IFS=',' read -ra PEERTUBE_CHANNELS <<< "${PEERTUBE_CHANNELS:-}"
+for i in "${!PEERTUBE_CHANNELS[@]}"; do
+  PEERTUBE_CHANNELS[$i]="$(echo "${PEERTUBE_CHANNELS[$i]}" | xargs)"
+done
 
-# PeerTube credentials. Prefer exporting these (or sourcing a conf file) over
-# hardcoding. A user account that can edit the target playlist is required.
-PEERTUBE_USERNAME="REPLACE"
-PEERTUBE_PASSWORD="REPLACE"
+# PeerTube credentials. A user account that can edit the target playlist is
+# required.
+PEERTUBE_USERNAME="${PEERTUBE_USERNAME:-}"
+PEERTUBE_PASSWORD="${PEERTUBE_PASSWORD:-}"
 
 # Target playlist.
 #   DATED_PLAYLIST=1 -> create a fresh playlist every run, named with the run
 #                       date (needs PLAYLIST_CHANNEL_ID). PLAYLIST_ID is ignored.
 #   DATED_PLAYLIST=0 -> use the single persistent playlist in PLAYLIST_ID
 #                       (or create one named PLAYLIST_NAME if PLAYLIST_ID empty).
-DATED_PLAYLIST=1
-PLAYLIST_NAME_PREFIX="New videos"        # dated mode: text before the date
-PLAYLIST_NAME_SEP="—"                     # dated mode: separator (em dash)
-PLAYLIST_DATE_FMT="%B %-d, %Y"            # dated mode: strftime, e.g. "July 6, 2026"
+DATED_PLAYLIST="${PEERTUBE_DATED_PLAYLIST:-1}"
+PLAYLIST_NAME_PREFIX="${PEERTUBE_PLAYLIST_NAME_PREFIX:-New videos}"  # dated mode: text before the date
+PLAYLIST_NAME_SEP="${PEERTUBE_PLAYLIST_NAME_SEP:-—}"                 # dated mode: separator (em dash)
+PLAYLIST_DATE_FMT="${PEERTUBE_PLAYLIST_DATE_FMT:-%B %-d, %Y}"        # dated mode: strftime, e.g. "July 6, 2026"
 
-PLAYLIST_ID="${PLAYLIST_ID:-}"
-PLAYLIST_NAME="New videos"               # non-dated mode: name when creating
-PLAYLIST_CHANNEL_ID="joel_plus_"  # numeric channel id, required to CREATE a public playlist
+PLAYLIST_ID="${PEERTUBE_PLAYLIST_ID:-}"
+PLAYLIST_NAME="${PEERTUBE_PLAYLIST_NAME:-New videos}"          # non-dated mode: name when creating
+PLAYLIST_CHANNEL_ID="${PEERTUBE_PLAYLIST_CHANNEL_ID:-}"  # numeric channel id, required to CREATE a public playlist
 
 # How many recent videos to inspect per channel each run (newest first).
-FETCH_COUNT=100
+FETCH_COUNT="${PEERTUBE_FETCH_COUNT:-100}"
 # Skip currently-live streams? (1 = skip lives that haven't finished)
-SKIP_LIVES=1
+SKIP_LIVES="${PEERTUBE_SKIP_LIVES:-1}"
 
 # Ghost
-GHOST_URL="https://joelplus.com"
-GHOST_ADMIN_KEY="REPLACE"
-GHOST_NEWSLETTER_SLUG="default-newsletter"
+GHOST_URL="${GHOST_URL:-}"
+GHOST_ADMIN_KEY="${GHOST_ADMIN_KEY:-}"
+GHOST_NEWSLETTER_SLUG="${GHOST_NEWSLETTER_SLUG:-default-newsletter}"
 # Who gets the emailed digest. The post itself is paid-gated (visibility=paid),
 # so this controls the newsletter send only:
 #   status:-free  -> paid (+comped) members only  [matches "paid members only"]
 #   all           -> everyone; free members get a paywalled teaser + upgrade CTA
 #   status:free   -> free members only
-GHOST_EMAIL_SEGMENT="status:-free"
-GHOST_TAG="Sunday Sidecar"
+GHOST_EMAIL_SEGMENT="${PEERTUBE_GHOST_EMAIL_SEGMENT:-status:-free}"
+GHOST_TAG="${PEERTUBE_GHOST_TAG:-Sunday Sidecar}"
 # ref= tag appended to outbound links for analytics
-LINK_REF="joelplus.com"
+LINK_REF="${PEERTUBE_LINK_REF:-joelplus.com}"
 
+for var in PEERTUBE_URL PEERTUBE_USERNAME PEERTUBE_PASSWORD GHOST_URL GHOST_ADMIN_KEY; do
+  if [[ -z "${!var}" ]]; then
+    echo "ERROR: $var is not set. Copy .env.example to .env (next to this script) and fill it in." >&2
+    exit 1
+  fi
+done
+if [[ "${#PEERTUBE_CHANNELS[@]}" -eq 0 || -z "${PEERTUBE_CHANNELS[0]}" ]]; then
+  echo "ERROR: PEERTUBE_CHANNELS is not set. Copy .env.example to .env (next to this script) and fill it in." >&2
+  exit 1
+fi
 
 # State
-SCRIPT_DIR="$HOME/scripts/ghost-scripts"
+SCRIPT_DIR="${SCRIPT_DIR:-$HOME/scripts/ghost-scripts}"
 SEEN_FILE="$SCRIPT_DIR/seen-peertube-video-ids.txt"
 
 mkdir -p "$SCRIPT_DIR"

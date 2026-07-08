@@ -12,17 +12,36 @@ elif [[ "${1:-}" != "" ]]; then
   exit 1
 fi
 
-CHANNEL_ID="UChF16WkUt8mzAybLWKVa_Iw"
-SCRIPT_DIR="$HOME/scripts/ghost-scripts"
+# ---------------------------------------------------------------------------
+# CONFIG (loaded from .env next to this script — see .env.example)
+# ---------------------------------------------------------------------------
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${ENV_FILE:-$SCRIPT_SOURCE_DIR/.env}"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
+CHANNEL_ID="${YOUTUBE_CHANNEL_ID:-}"
+SCRIPT_DIR="${SCRIPT_DIR:-$HOME/scripts/ghost-scripts}"
 SEEN_FILE="$SCRIPT_DIR/seen-youtube-post-ids.txt"
 
-GHOST_URL="https://joelplus.com"
-GHOST_ADMIN_KEY="REPLACE"
-GHOST_NEWSLETTER_SLUG="default-newsletter"
-GHOST_TAG="YT Community Posts"
+GHOST_URL="${GHOST_URL:-}"
+GHOST_ADMIN_KEY="${GHOST_ADMIN_KEY:-}"
+GHOST_NEWSLETTER_SLUG="${GHOST_NEWSLETTER_SLUG:-default-newsletter}"
+GHOST_TAG="${YOUTUBE_GHOST_TAG:-YT Community Posts}"
 
-BOOKMARK_ICON="https://joelplus.com/YT-Icon.png"
-BOOKMARK_THUMBNAIL="https://joelplus.com/default-thumbnail-thing"
+BOOKMARK_ICON="${YOUTUBE_BOOKMARK_ICON:-https://joelplus.com/YT-Icon.png}"
+BOOKMARK_THUMBNAIL="${YOUTUBE_BOOKMARK_THUMBNAIL:-https://joelplus.com/default-thumbnail-thing}"
+
+for var in CHANNEL_ID GHOST_URL GHOST_ADMIN_KEY; do
+  if [[ -z "${!var}" ]]; then
+    echo "ERROR: $var is not set. Copy .env.example to .env (next to this script) and fill it in." >&2
+    exit 1
+  fi
+done
 
 mkdir -p "$SCRIPT_DIR"
 touch "$SEEN_FILE"
