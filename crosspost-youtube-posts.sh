@@ -32,8 +32,8 @@ GHOST_ADMIN_KEY="${GHOST_ADMIN_KEY:-}"
 GHOST_NEWSLETTER_SLUG="${GHOST_NEWSLETTER_SLUG:-default-newsletter}"
 GHOST_TAG="${YOUTUBE_GHOST_TAG:-YT Community Posts}"
 
-BOOKMARK_ICON="${YOUTUBE_BOOKMARK_ICON:-https://joelplus.com/YT-Icon.png}"
-BOOKMARK_THUMBNAIL="${YOUTUBE_BOOKMARK_THUMBNAIL:-https://joelplus.com/default-thumbnail-thing}"
+BOOKMARK_ICON="${YOUTUBE_BOOKMARK_ICON:-$GHOST_URL/YT-Icon.png}"
+BOOKMARK_THUMBNAIL="${YOUTUBE_BOOKMARK_THUMBNAIL:-$GHOST_URL/default-thumbnail-thing}"
 
 for var in CHANNEL_ID GHOST_URL GHOST_ADMIN_KEY; do
   if [[ -z "${!var}" ]]; then
@@ -41,6 +41,11 @@ for var in CHANNEL_ID GHOST_URL GHOST_ADMIN_KEY; do
     exit 1
   fi
 done
+
+# Bare host of the Ghost instance (e.g. "joelplus.com"), used to detect
+# community posts that link back to the site and to tag outbound YouTube URLs.
+GHOST_DOMAIN="${GHOST_URL#*://}"
+GHOST_DOMAIN="${GHOST_DOMAIN%%/*}"
 
 touch "$SEEN_FILE"
 
@@ -93,7 +98,7 @@ HTML_TMP="$(mktemp)"
 printf '%s' "$HTML" > "$HTML_TMP"
 
 mapfile -t POST_ROWS < <(
-  python3 - "$HTML_TMP" <<'PY'
+  python3 - "$HTML_TMP" "$GHOST_DOMAIN" <<'PY'
 import html as html_lib
 import json
 import re
@@ -101,6 +106,8 @@ import sys
 
 with open(sys.argv[1], "r", encoding="utf-8", errors="replace") as f:
     html = f.read()
+
+ghost_domain = sys.argv[2].lower()
 
 matches = list(re.finditer(r'postId":"([^"]+)"', html))
 seen = set()
@@ -209,14 +216,14 @@ for idx, match in enumerate(matches):
 
     post_type = detect_post_type(block, candidates)
 
-    has_joelplus_link = "joelplus.com" in block.lower()
+    has_ghost_domain_link = bool(ghost_domain) and ghost_domain in block.lower()
 
     print(json.dumps({
         "post_id": post_id,
         "first_line": first_line,
         "image_url": image_url,
         "post_type": post_type,
-        "has_joelplus_link": has_joelplus_link,
+        "has_ghost_domain_link": has_ghost_domain_link,
     }, ensure_ascii=False))
 PY
 )
@@ -238,7 +245,7 @@ for (( i=${#POST_ROWS[@]}-1; i>=0; i-- )); do
   RAW_FIRST_LINE="$(printf '%s' "$ROW" | json_get "['first_line']")"
   POST_IMAGE_URL="$(printf '%s' "$ROW" | json_get "['image_url']")"
   POST_TYPE="$(printf '%s' "$ROW" | json_get "['post_type']")"
-  HAS_JOELPLUS_LINK="$(printf '%s' "$ROW" | json_get "['has_joelplus_link']")"
+  HAS_GHOST_DOMAIN_LINK="$(printf '%s' "$ROW" | json_get "['has_ghost_domain_link']")"
 
   if grep -Fxq "$POST_ID" "$SEEN_FILE"; then
     continue
@@ -273,8 +280,8 @@ for (( i=${#POST_ROWS[@]}-1; i>=0; i-- )); do
       ;;
   esac
 
-  if [[ "$HAS_JOELPLUS_LINK" == "True" ]]; then
-    echo "Ignoring post because it links to joelplus.com: https://www.youtube.com/post/$POST_ID"
+  if [[ "$HAS_GHOST_DOMAIN_LINK" == "True" ]]; then
+    echo "Ignoring post because it links to $GHOST_DOMAIN: https://www.youtube.com/post/$POST_ID"
     echo "$POST_ID" >> "$SEEN_FILE"
     continue
   fi
@@ -282,7 +289,7 @@ for (( i=${#POST_ROWS[@]}-1; i>=0; i-- )); do
   EXCERPT="$(printf '%s' "$RAW_FIRST_LINE" | truncate_300)"
   EXCERPT_HTML="$(printf '%s' "$EXCERPT" | html_escape)"
 
-  POST_URL="https://www.youtube.com/post/${POST_ID}?ref=joelplus.com"
+  POST_URL="https://www.youtube.com/post/${POST_ID}?ref=${GHOST_DOMAIN}"
   POST_URL_HTML="$(printf '%s' "$POST_URL" | html_escape)"
   TYPE_LABEL_HTML="$(printf '%s' "$TYPE_LABEL" | html_escape)"
 
