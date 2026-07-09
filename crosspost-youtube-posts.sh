@@ -31,6 +31,7 @@ GHOST_URL="${GHOST_URL:-}"
 GHOST_ADMIN_KEY="${GHOST_ADMIN_KEY:-}"
 GHOST_NEWSLETTER_SLUG="${GHOST_NEWSLETTER_SLUG:-default-newsletter}"
 GHOST_TAG="${YOUTUBE_GHOST_TAG:-YT Community Posts}"
+GHOST_VISIBILITY="${YOUTUBE_GHOST_VISIBILITY:-public}"
 
 BOOKMARK_ICON="${YOUTUBE_BOOKMARK_ICON:-https://joelplus.com/YT-Icon.png}"
 BOOKMARK_THUMBNAIL="${YOUTUBE_BOOKMARK_THUMBNAIL:-https://joelplus.com/default-thumbnail-thing}"
@@ -325,6 +326,7 @@ for (( i=${#POST_ROWS[@]}-1; i>=0; i-- )); do
   HTML_JSON="$(printf '%s' "$HTML_BODY" | json_escape)"
   EXCERPT_JSON="$(printf '%s' "$EXCERPT" | json_escape)"
   TAG_JSON="$(printf '%s' "$GHOST_TAG" | json_escape)"
+  VISIBILITY_JSON="$(printf '%s' "$GHOST_VISIBILITY" | json_escape)"
 
   if [[ -n "$POST_IMAGE_URL" ]]; then
     FEATURE_IMAGE_JSON="$(printf '%s' "$POST_IMAGE_URL" | json_escape)"
@@ -347,7 +349,7 @@ for (( i=${#POST_ROWS[@]}-1; i>=0; i-- )); do
         \"feature_image\": $FEATURE_IMAGE_JSON,
         \"tags\": [$TAG_JSON],
         \"status\": \"draft\",
-        \"visibility\": \"public\"
+        \"visibility\": $VISIBILITY_JSON
       }]
     }")"
 
