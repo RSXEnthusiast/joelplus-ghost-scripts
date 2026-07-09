@@ -98,13 +98,14 @@ SKIP_LIVES="${PEERTUBE_SKIP_LIVES:-1}"
 GHOST_URL="${GHOST_URL:-}"
 GHOST_ADMIN_KEY="${GHOST_ADMIN_KEY:-}"
 GHOST_NEWSLETTER_SLUG="${GHOST_NEWSLETTER_SLUG:-default-newsletter}"
-# Who gets the emailed digest. The post itself is paid-gated (visibility=paid),
-# so this controls the newsletter send only:
+# Who gets the emailed digest. The post's own visibility is set by
+# PEERTUBE_GHOST_VISIBILITY (default paid); this controls the newsletter send only:
 #   status:-free  -> paid (+comped) members only  [matches "paid members only"]
 #   all           -> everyone; free members get a paywalled teaser + upgrade CTA
 #   status:free   -> free members only
 GHOST_EMAIL_SEGMENT="${PEERTUBE_GHOST_EMAIL_SEGMENT:-status:-free}"
 GHOST_TAG="${PEERTUBE_GHOST_TAG:-Sunday Sidecar}"
+GHOST_VISIBILITY="${PEERTUBE_GHOST_VISIBILITY:-paid}"
 # ref= tag appended to outbound links for analytics
 LINK_REF="${PEERTUBE_LINK_REF:-joelplus.com}"
 
@@ -467,6 +468,7 @@ TITLE_JSON="$(printf '%s' "$TITLE" | json_escape)"
 HTML_JSON="$(printf '%s' "$HTML_BODY" | json_escape)"
 EXCERPT_JSON="$(printf '%s' "$EXCERPT" | json_escape)"
 TAG_JSON="$(printf '%s' "$GHOST_TAG" | json_escape)"
+VISIBILITY_JSON="$(printf '%s' "$GHOST_VISIBILITY" | json_escape)"
 if [[ -n "$FEATURE_IMAGE" ]]; then
   FEATURE_IMAGE_JSON="$(printf '%s' "$FEATURE_IMAGE" | json_escape)"
 else
@@ -489,7 +491,7 @@ CREATE_RESPONSE="$(curl -s -w '\nHTTP_STATUS:%{http_code}\n' \
       \"feature_image\": $FEATURE_IMAGE_JSON,
       \"tags\": [$TAG_JSON],
       \"status\": \"draft\",
-      \"visibility\": \"paid\"
+      \"visibility\": $VISIBILITY_JSON
     }]
   }")"
 
