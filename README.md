@@ -66,7 +66,8 @@ Checks YouTube for new Community posts and cross-posts them to Ghost.
    - If you use the default newsletter, the default value may already work.
    - You can verify this by poking around in the F12 inspector while editing the newsletter setting in the admin settings, looking for the newsletter slug.
 5. Set `YOUTUBE_GHOST_TAG` if you want it to be different from the default.
-6. Update the bookmark card URLs (`YOUTUBE_BOOKMARK_ICON` / `YOUTUBE_BOOKMARK_THUMBNAIL`).
+6. Set `YOUTUBE_GHOST_VISIBILITY` if you want the cross-posted Ghost posts to be something other than `public` (e.g. `members` or `paid`).
+7. Update the bookmark card URLs (`YOUTUBE_BOOKMARK_ICON` / `YOUTUBE_BOOKMARK_THUMBNAIL`).
    - Icon: YouTube logo (included in repo)
    - Thumbnail: default image if post is not an image post.
    - You can probably generate these automatically by manually creating a draft post with a /bookmark card of an existing YouTube text post, then inspecting the element and copying the URLs of the images.
