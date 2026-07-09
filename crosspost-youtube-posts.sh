@@ -33,6 +33,16 @@ GHOST_NEWSLETTER_SLUG="${GHOST_NEWSLETTER_SLUG:-default-newsletter}"
 GHOST_TAG="${YOUTUBE_GHOST_TAG:-YT Community Posts}"
 GHOST_VISIBILITY="${YOUTUBE_GHOST_VISIBILITY:-public}"
 
+# Newsletter audience. Defaults to match the post's visibility so the email
+# reaches the same people who can see the post (paid -> paid members only,
+# otherwise -> all members). Override independently with
+# YOUTUBE_GHOST_EMAIL_SEGMENT (all / status:free / status:-free).
+case "$GHOST_VISIBILITY" in
+  paid) DEFAULT_EMAIL_SEGMENT="status:-free" ;;
+  *)    DEFAULT_EMAIL_SEGMENT="all" ;;
+esac
+GHOST_EMAIL_SEGMENT="${YOUTUBE_GHOST_EMAIL_SEGMENT:-$DEFAULT_EMAIL_SEGMENT}"
+
 BOOKMARK_ICON="${YOUTUBE_BOOKMARK_ICON:-https://joelplus.com/YT-Icon.png}"
 BOOKMARK_THUMBNAIL="${YOUTUBE_BOOKMARK_THUMBNAIL:-https://joelplus.com/default-thumbnail-thing}"
 
@@ -376,7 +386,7 @@ for (( i=${#POST_ROWS[@]}-1; i>=0; i-- )); do
   echo "Publishing and emailing Ghost post: $POST_URL"
 
   PUBLISH_RESPONSE="$(curl -s -w '\nHTTP_STATUS:%{http_code}\n' \
-    -X PUT "$GHOST_URL/ghost/api/admin/posts/${POST_GHOST_ID}/?newsletter=${GHOST_NEWSLETTER_SLUG}&email_segment=all" \
+    -X PUT "$GHOST_URL/ghost/api/admin/posts/${POST_GHOST_ID}/?newsletter=${GHOST_NEWSLETTER_SLUG}&email_segment=${GHOST_EMAIL_SEGMENT}" \
     -H "Authorization: Ghost $TOKEN" \
     -H "Content-Type: application/json" \
     -d "{
