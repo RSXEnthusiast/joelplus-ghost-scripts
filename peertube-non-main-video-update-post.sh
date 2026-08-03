@@ -330,6 +330,29 @@ pt_add_to_playlist() {
   pt_video_in_playlist "$video_id"
 }
 
+# Set the playlist's thumbnail from an image URL. PeerTube is meant to auto-
+# generate a playlist thumbnail from the first video when a video is added, but
+# on instances where that generation fails (the same failure behind the add
+# 500s) the playlist is left with a blank tile. Uploading one ourselves fixes
+# that. Best-effort: returns non-zero on failure but the caller shouldn't abort.
+pt_set_playlist_thumbnail() {
+  local img_url="$1" tmp status
+  [[ -n "$img_url" ]] || return 0
+  tmp="$(mktemp)"
+  if ! curl -fsS "$img_url" -o "$tmp"; then
+    echo "WARN: could not download thumbnail image ($img_url); leaving playlist thumbnail unset." >&2
+    rm -f "$tmp"; return 1
+  fi
+  status="$(curl -s -o /dev/null -w '%{http_code}' \
+    -X PUT "$PEERTUBE_URL/api/v1/video-playlists/$PLAYLIST_ID" \
+    -H "Authorization: Bearer $PT_TOKEN" \
+    -F "thumbnailfile=@$tmp;type=image/jpeg;filename=thumbnail.jpg")"
+  rm -f "$tmp"
+  [[ "$status" =~ ^2[0-9][0-9]$ ]] && return 0
+  echo "WARN: setting playlist thumbnail returned HTTP $status." >&2
+  return 1
+}
+
 # ---------------------------------------------------------------------------
 # COLLECT NEW VIDEOS
 # ---------------------------------------------------------------------------
@@ -444,13 +467,13 @@ pt_ensure_playlist
 # Process each new video: add to playlist (unless --test), keep the ones that
 # succeed for the digest + seen-marking.
 #
-# ORDER NOTE: PeerTube surfaces the most-recently-added element at the TOP of a
-# playlist, so to make the finished playlist read oldest->newest (chronological)
-# we add videos in reverse (newest-first) -- the oldest video, added last, ends
-# up on top. DIGEST_ROWS is still assembled oldest-first (we prepend) so the
-# post's list + feature-image logic below are unaffected.
+# ORDER NOTE: PeerTube appends each newly-added element to the END (bottom) of a
+# playlist, so the finished playlist reads in add order, top->bottom. NEW_ROWS is
+# already oldest-first, so adding them in that order makes the playlist read
+# oldest->newest (chronological). DIGEST_ROWS is assembled in the same oldest-
+# first order (we append) so the post's list + feature-image logic are unaffected.
 declare -a DIGEST_ROWS=()
-for (( i=${#NEW_ROWS[@]}-1; i>=0; i-- )); do
+for (( i=0; i<${#NEW_ROWS[@]}; i++ )); do
   row="${NEW_ROWS[$i]}"
   name="$(printf '%s' "$row" | json_get "['name']")"
   vid_id="$(printf '%s' "$row" | json_get "['id']")"
@@ -462,7 +485,7 @@ for (( i=${#NEW_ROWS[@]}-1; i>=0; i-- )); do
       # Add endpoint erred (typically HTTP 500) but the video is in the playlist.
       echo "Added to playlist -> $name (PeerTube returned HTTP ${PT_ADD_LAST_STATUS}, but the video is in the playlist)"
     fi
-    DIGEST_ROWS=("$row" "${DIGEST_ROWS[@]}")   # prepend -> keeps DIGEST_ROWS oldest-first
+    DIGEST_ROWS+=("$row")   # append -> keeps DIGEST_ROWS oldest-first
   else
     echo "WARN: failed to add '$name' (id $vid_id) to playlist (HTTP ${PT_ADD_LAST_STATUS:-?}); leaving it unseen to retry." >&2
     echo "      PeerTube response: ${PT_ADD_LAST_BODY:-<empty>}" >&2
@@ -482,6 +505,14 @@ TITLE="Sunday Sidecar // $POST_DATE"
 # Feature image = newest video's thumbnail (last row = newest, since we
 # processed oldest-first).
 FEATURE_IMAGE="$(printf '%s' "${DIGEST_ROWS[-1]}" | json_get "['thumb']")"
+
+# Give the playlist a thumbnail explicitly, since PeerTube's auto-generation is
+# failing on this instance (same root cause as the add 500s). Use the newest
+# video's image so it matches the post's feature image. Best-effort only.
+if [[ "$TEST_MODE" -eq 0 ]]; then
+  echo "Setting playlist thumbnail ..."
+  pt_set_playlist_thumbnail "$FEATURE_IMAGE" || true
+fi
 
 PLAYLIST_WATCH_URL="$PEERTUBE_URL/w/p/$PLAYLIST_SHORT?ref=$LINK_REF"
 # Use the shortUUID for the embed (matches PeerTube's "share > embed" markup).
