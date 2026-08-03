@@ -507,18 +507,18 @@ COUNT="${#DIGEST_ROWS[@]}"
 POST_DATE="$(date +"%B %-d, %Y")"          # e.g. "July 2, 2026"
 TITLE="Sunday Sidecar // $POST_DATE"
 
-# Feature image = newest video's preview (last row = newest, since we processed
-# oldest-first). Use the high-res preview, not the small thumbnail.
-FEATURE_IMAGE="$(printf '%s' "${DIGEST_ROWS[-1]}" | json_get "['preview']")"
+# Feature image = first (oldest) video's preview, so it matches the playlist
+# cover. Use the high-res preview, not the small thumbnail.
+FEATURE_IMAGE="$(printf '%s' "${DIGEST_ROWS[0]}" | json_get "['preview']")"
 
 # Give the playlist a thumbnail explicitly, since PeerTube's auto-generation is
-# failing on this instance (same root cause as the add 500s). Use the FIRST
-# (top) video's high-res preview -- that matches how PeerTube itself picks a
-# playlist cover (the first element). Best-effort only.
+# failing on this instance (same root cause as the add 500s). Reuse FEATURE_IMAGE
+# (the first/top video's high-res preview) so the playlist cover matches the post
+# feature image and how PeerTube itself picks a cover (the first element).
+# Best-effort only.
 if [[ "$TEST_MODE" -eq 0 ]]; then
-  PLAYLIST_THUMB="$(printf '%s' "${DIGEST_ROWS[0]}" | json_get "['preview']")"
   echo "Setting playlist thumbnail ..."
-  pt_set_playlist_thumbnail "$PLAYLIST_THUMB" || true
+  pt_set_playlist_thumbnail "$FEATURE_IMAGE" || true
 fi
 
 PLAYLIST_WATCH_URL="$PEERTUBE_URL/w/p/$PLAYLIST_SHORT?ref=$LINK_REF"
