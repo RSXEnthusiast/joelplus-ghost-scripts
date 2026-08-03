@@ -271,13 +271,13 @@ pt_ensure_playlist() {
   PLAYLIST_DISPLAY="$(printf '%s' "$meta" | json_get "['displayName']")"
 }
 
-# Add a video (by numeric id) to the playlist. Returns 0 on success (or if
-# already present), non-zero otherwise. Captures the HTTP status and response
-# body in PT_ADD_LAST_STATUS / PT_ADD_LAST_BODY so the caller can report exactly
-# what PeerTube said on failure.
+# POST a video (by numeric id) to the playlist. Captures the HTTP status and
+# response body in PT_ADD_LAST_STATUS / PT_ADD_LAST_BODY. Returns 0 only for an
+# unambiguous success code; callers fall back to pt_video_in_playlist to confirm
+# membership when the status is anything else.
 PT_ADD_LAST_STATUS=""
 PT_ADD_LAST_BODY=""
-pt_add_to_playlist() {
+pt_post_add() {
   local video_id="$1" resp
   # Append the status code on its own trailing line so we can split it off the
   # (possibly multi-line) JSON body without discarding the body.
@@ -290,6 +290,44 @@ pt_add_to_playlist() {
   PT_ADD_LAST_BODY="${resp%$'\n'*}"      # everything before it = response body
   # 200 = added. 409 = already in playlist (treat as success).
   [[ "$PT_ADD_LAST_STATUS" == "200" || "$PT_ADD_LAST_STATUS" == "409" ]]
+}
+
+# Return 0 if the video (numeric id) is currently an element of the playlist.
+# PeerTube can return HTTP 500 from the add endpoint *after* the element row has
+# already been inserted (e.g. when regenerating the playlist thumbnail or during
+# federation fails), so a 500 does not reliably mean the add failed -- reading
+# the playlist back is the only trustworthy signal. Returns 2 if the playlist
+# could not be read (so the caller doesn't misread a network error as "absent").
+pt_video_in_playlist() {
+  local video_id="$1" start=0 resp page present total els_count
+  while :; do
+    resp="$(curl -fsS \
+      "$PEERTUBE_URL/api/v1/video-playlists/$PLAYLIST_ID/videos?count=100&start=$start" \
+      -H "Authorization: Bearer $PT_TOKEN")" || return 2
+    page="$(VIDEO_ID="$video_id" python3 -c '
+import json, os, sys
+d = json.load(sys.stdin)
+vid = int(os.environ["VIDEO_ID"])
+els = d.get("data", [])
+present = any((e.get("video") or {}).get("id") == vid for e in els)
+print("%s %s %s" % ("1" if present else "0", d.get("total") or 0, len(els)))
+' <<< "$resp")" || return 2
+    read -r present total els_count <<< "$page"
+    [[ "$present" == "1" ]] && return 0
+    start=$((start + els_count))
+    [[ "$els_count" -eq 0 || "$start" -ge "$total" ]] && break
+  done
+  return 1
+}
+
+# Add a video to the playlist, tolerating PeerTube's post-insert 500s by
+# confirming membership on any non-success status. Returns 0 if the video is in
+# the playlist afterward, non-zero otherwise.
+pt_add_to_playlist() {
+  local video_id="$1"
+  pt_post_add "$video_id" && return 0
+  # POST didn't report clean success -- verify whether it landed anyway.
+  pt_video_in_playlist "$video_id"
 }
 
 # ---------------------------------------------------------------------------
@@ -418,7 +456,12 @@ for (( i=${#NEW_ROWS[@]}-1; i>=0; i-- )); do
   vid_id="$(printf '%s' "$row" | json_get "['id']")"
 
   if pt_add_to_playlist "$vid_id"; then
-    echo "Added to playlist -> $name"
+    if [[ "$PT_ADD_LAST_STATUS" == "200" || "$PT_ADD_LAST_STATUS" == "409" ]]; then
+      echo "Added to playlist -> $name"
+    else
+      # Add endpoint erred (typically HTTP 500) but the video is in the playlist.
+      echo "Added to playlist -> $name (PeerTube returned HTTP ${PT_ADD_LAST_STATUS}, but the video is in the playlist)"
+    fi
     DIGEST_ROWS=("$row" "${DIGEST_ROWS[@]}")   # prepend -> keeps DIGEST_ROWS oldest-first
   else
     echo "WARN: failed to add '$name' (id $vid_id) to playlist (HTTP ${PT_ADD_LAST_STATUS:-?}); leaving it unseen to retry." >&2
