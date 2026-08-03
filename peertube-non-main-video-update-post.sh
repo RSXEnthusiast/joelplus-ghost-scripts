@@ -387,6 +387,10 @@ for v in videos:
         continue
     thumb = v.get("thumbnailPath") or v.get("previewPath") or ""
     thumb = (base + thumb) if thumb.startswith("/") else thumb
+    # previewPath is the large poster image; thumbnailPath is a small low-res
+    # tile. Prefer the preview for cover images (Ghost feature + playlist thumb).
+    preview = v.get("previewPath") or v.get("thumbnailPath") or ""
+    preview = (base + preview) if preview.startswith("/") else preview
     url = v.get("url") or f"{base}/w/{v.get('shortUUID') or v.get('uuid')}"
     channel = (v.get("channel") or {}).get("displayName") or handle
     rows.append({
@@ -395,6 +399,7 @@ for v in videos:
         "name": (v.get("name") or "Untitled").strip(),
         "url": url,
         "thumb": thumb,
+        "preview": preview,
         "published": v.get("publishedAt") or "",
         "channel": channel,
         "description": (v.get("description") or "").strip(),
@@ -502,16 +507,18 @@ COUNT="${#DIGEST_ROWS[@]}"
 POST_DATE="$(date +"%B %-d, %Y")"          # e.g. "July 2, 2026"
 TITLE="Sunday Sidecar // $POST_DATE"
 
-# Feature image = newest video's thumbnail (last row = newest, since we
-# processed oldest-first).
-FEATURE_IMAGE="$(printf '%s' "${DIGEST_ROWS[-1]}" | json_get "['thumb']")"
+# Feature image = newest video's preview (last row = newest, since we processed
+# oldest-first). Use the high-res preview, not the small thumbnail.
+FEATURE_IMAGE="$(printf '%s' "${DIGEST_ROWS[-1]}" | json_get "['preview']")"
 
 # Give the playlist a thumbnail explicitly, since PeerTube's auto-generation is
-# failing on this instance (same root cause as the add 500s). Use the newest
-# video's image so it matches the post's feature image. Best-effort only.
+# failing on this instance (same root cause as the add 500s). Use the FIRST
+# (top) video's high-res preview -- that matches how PeerTube itself picks a
+# playlist cover (the first element). Best-effort only.
 if [[ "$TEST_MODE" -eq 0 ]]; then
+  PLAYLIST_THUMB="$(printf '%s' "${DIGEST_ROWS[0]}" | json_get "['preview']")"
   echo "Setting playlist thumbnail ..."
-  pt_set_playlist_thumbnail "$FEATURE_IMAGE" || true
+  pt_set_playlist_thumbnail "$PLAYLIST_THUMB" || true
 fi
 
 PLAYLIST_WATCH_URL="$PEERTUBE_URL/w/p/$PLAYLIST_SHORT?ref=$LINK_REF"
