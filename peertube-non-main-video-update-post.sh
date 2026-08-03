@@ -272,9 +272,7 @@ pt_ensure_playlist() {
 }
 
 # Add a video (by numeric id) to the playlist. Returns 0 on success (or if
-# already present), non-zero otherwise. On failure, sets PT_ADD_LAST_STATUS to
-# the HTTP status so the caller can report it.
-PT_ADD_LAST_STATUS=""
+# already present), non-zero otherwise.
 pt_add_to_playlist() {
   local video_id="$1" status
   status="$(curl -s -o /dev/null -w '%{http_code}' \
@@ -282,10 +280,8 @@ pt_add_to_playlist() {
     -H "Authorization: Bearer $PT_TOKEN" \
     -H "Content-Type: application/json" \
     -d "{\"videoId\": $video_id}")"
-  PT_ADD_LAST_STATUS="$status"
-  # Any 2xx = added (PeerTube versions have returned both 200 and 201 here).
-  # 409 = already in playlist (treat as success).
-  [[ "$status" =~ ^2[0-9][0-9]$ || "$status" == "409" ]]
+  # 200 = added. 409 = already in playlist (treat as success).
+  [[ "$status" == "200" || "$status" == "409" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -417,7 +413,7 @@ for (( i=${#NEW_ROWS[@]}-1; i>=0; i-- )); do
     echo "Added to playlist -> $name"
     DIGEST_ROWS=("$row" "${DIGEST_ROWS[@]}")   # prepend -> keeps DIGEST_ROWS oldest-first
   else
-    echo "WARN: failed to add '$name' (id $vid_id) to playlist (HTTP ${PT_ADD_LAST_STATUS:-?}); leaving it unseen to retry." >&2
+    echo "WARN: failed to add '$name' (id $vid_id) to playlist; leaving it unseen to retry." >&2
   fi
 done
 
