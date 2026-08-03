@@ -272,16 +272,24 @@ pt_ensure_playlist() {
 }
 
 # Add a video (by numeric id) to the playlist. Returns 0 on success (or if
-# already present), non-zero otherwise.
+# already present), non-zero otherwise. Captures the HTTP status and response
+# body in PT_ADD_LAST_STATUS / PT_ADD_LAST_BODY so the caller can report exactly
+# what PeerTube said on failure.
+PT_ADD_LAST_STATUS=""
+PT_ADD_LAST_BODY=""
 pt_add_to_playlist() {
-  local video_id="$1" status
-  status="$(curl -s -o /dev/null -w '%{http_code}' \
+  local video_id="$1" resp
+  # Append the status code on its own trailing line so we can split it off the
+  # (possibly multi-line) JSON body without discarding the body.
+  resp="$(curl -s -w $'\n%{http_code}' \
     -X POST "$PEERTUBE_URL/api/v1/video-playlists/$PLAYLIST_ID/videos" \
     -H "Authorization: Bearer $PT_TOKEN" \
     -H "Content-Type: application/json" \
     -d "{\"videoId\": $video_id}")"
+  PT_ADD_LAST_STATUS="${resp##*$'\n'}"   # last line = %{http_code}
+  PT_ADD_LAST_BODY="${resp%$'\n'*}"      # everything before it = response body
   # 200 = added. 409 = already in playlist (treat as success).
-  [[ "$status" == "200" || "$status" == "409" ]]
+  [[ "$PT_ADD_LAST_STATUS" == "200" || "$PT_ADD_LAST_STATUS" == "409" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -413,7 +421,8 @@ for (( i=${#NEW_ROWS[@]}-1; i>=0; i-- )); do
     echo "Added to playlist -> $name"
     DIGEST_ROWS=("$row" "${DIGEST_ROWS[@]}")   # prepend -> keeps DIGEST_ROWS oldest-first
   else
-    echo "WARN: failed to add '$name' (id $vid_id) to playlist; leaving it unseen to retry." >&2
+    echo "WARN: failed to add '$name' (id $vid_id) to playlist (HTTP ${PT_ADD_LAST_STATUS:-?}); leaving it unseen to retry." >&2
+    echo "      PeerTube response: ${PT_ADD_LAST_BODY:-<empty>}" >&2
   fi
 done
 
