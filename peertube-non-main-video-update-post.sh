@@ -330,6 +330,110 @@ pt_add_to_playlist() {
   pt_video_in_playlist "$video_id"
 }
 
+# Emit "<position> <videoId>" for every element of the playlist, ascending by
+# position. Returns non-zero if the playlist could not be read.
+pt_playlist_elements() {
+  local start=0 total=0 els_count=0 resp out kind a b
+  while :; do
+    resp="$(curl -fsS \
+      "$PEERTUBE_URL/api/v1/video-playlists/$PLAYLIST_ID/videos?count=100&start=$start" \
+      -H "Authorization: Bearer $PT_TOKEN")" || return 1
+    out="$(python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+els = d.get("data", [])
+for e in els:
+    pos = e.get("position")
+    vid = (e.get("video") or {}).get("id")
+    if pos is not None and vid is not None:
+        print("E %d %d" % (pos, vid))
+print("M %d %d" % (d.get("total") or 0, len(els)))
+' <<< "$resp")" || return 1
+    while read -r kind a b; do
+      if [[ "$kind" == "E" ]]; then printf '%s %s\n' "$a" "$b"; fi
+      if [[ "$kind" == "M" ]]; then total="$a"; els_count="$b"; fi
+    done <<< "$out"
+    start=$((start + els_count))
+    if [[ "$els_count" -eq 0 || "$start" -ge "$total" ]]; then break; fi
+  done
+}
+
+# Put the playlist in the order we actually want, given the ids of this run's
+# videos (oldest-first) as arguments.
+#
+# PeerTube is meant to append each newly-added element to the end of the
+# playlist, which would leave it chronological all by itself. This instance does
+# not reliably do that (the same flakiness behind the post-insert 500s and the
+# missing auto-generated thumbnail), and the playlist comes out reversed. So
+# rather than trusting insertion order, state the order explicitly: anything we
+# did not add this run keeps its existing order at the top, and this run's
+# videos follow it oldest -> newest.
+#
+# Each pass re-reads the playlist and makes at most one move, so the loop
+# converges on the target order no matter where the adds actually landed, and
+# costs a single read when the order is already right. Best-effort: any failure
+# warns and leaves the playlist alone rather than aborting the run.
+pt_sort_playlist() {
+  local want="$*" max_passes pass elements move start_pos insert_after status
+  [[ -n "$want" ]] || return 0
+  # One move per misplaced element is enough; the bound only stops a runaway
+  # loop if the server keeps refusing to move things where we ask.
+  max_passes=$(( $# * 2 + 4 ))
+  for (( pass=0; pass<max_passes; pass++ )); do
+    elements="$(pt_playlist_elements)" \
+      || { echo "WARN: could not read the playlist back to check its order." >&2; return 1; }
+    move="$(WANT="$want" python3 -c '
+import os, sys
+
+cur = []
+for line in sys.stdin:
+    parts = line.split()
+    if len(parts) == 2:
+        cur.append((int(parts[0]), int(parts[1])))
+cur.sort(key=lambda p: p[0])
+
+batch = set()
+want = []
+for x in os.environ["WANT"].split():
+    v = int(x)
+    if v not in batch:
+        batch.add(v)
+        want.append(v)
+
+ids = [v for _, v in cur]
+present = set(ids)
+desired = [v for v in ids if v not in batch] + [v for v in want if v in present]
+
+# Nothing to do if the order already matches, and nothing safe to do if the two
+# lists somehow describe different sets of videos.
+if ids == desired or sorted(ids) != sorted(desired):
+    sys.exit(0)
+
+# First slot that holds the wrong video, and where the right one sits now. It is
+# always further down, so this is a backwards move: drop it in just after the
+# element that should precede it (position 0 = the very top).
+t = next(i for i in range(len(ids)) if ids[i] != desired[i])
+c = next(i for i in range(t + 1, len(ids)) if ids[i] == desired[t])
+print("%d %d" % (cur[c][0], cur[t - 1][0] if t > 0 else 0))
+' <<< "$elements")" \
+      || { echo "WARN: could not work out the playlist order." >&2; return 1; }
+    # No move left to make -- the playlist reads the way we want it.
+    [[ -n "$move" ]] || return 0
+    read -r start_pos insert_after <<< "$move"
+    status="$(curl -s -o /dev/null -w '%{http_code}' \
+      -X POST "$PEERTUBE_URL/api/v1/video-playlists/$PLAYLIST_ID/videos/reorder" \
+      -H "Authorization: Bearer $PT_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "{\"startPosition\": $start_pos, \"insertAfterPosition\": $insert_after}")"
+    if [[ ! "$status" =~ ^2[0-9][0-9]$ ]]; then
+      echo "WARN: reordering the playlist returned HTTP $status; leaving the order as-is." >&2
+      return 1
+    fi
+  done
+  echo "WARN: gave up putting the playlist in order after $max_passes passes." >&2
+  return 1
+}
+
 # Set the playlist's thumbnail from an image URL. PeerTube is meant to auto-
 # generate a playlist thumbnail from the first video when a video is added, but
 # on instances where that generation fails (the same failure behind the add
@@ -472,11 +576,12 @@ pt_ensure_playlist
 # Process each new video: add to playlist (unless --test), keep the ones that
 # succeed for the digest + seen-marking.
 #
-# ORDER NOTE: PeerTube appends each newly-added element to the END (bottom) of a
-# playlist, so the finished playlist reads in add order, top->bottom. NEW_ROWS is
-# already oldest-first, so adding them in that order makes the playlist read
-# oldest->newest (chronological). DIGEST_ROWS is assembled in the same oldest-
-# first order (we append) so the post's list + feature-image logic are unaffected.
+# ORDER NOTE: NEW_ROWS is oldest-first, and we add in that order so a PeerTube
+# that appends (as it is supposed to) ends up chronological with no extra work.
+# This instance does not reliably append, so pt_sort_playlist below fixes up the
+# order afterwards instead of leaving it to chance. DIGEST_ROWS is assembled in
+# the same oldest-first order (we append) so the post's list + feature-image
+# logic are unaffected.
 declare -a DIGEST_ROWS=()
 for (( i=0; i<${#NEW_ROWS[@]}; i++ )); do
   row="${NEW_ROWS[$i]}"
@@ -501,6 +606,15 @@ if [[ "${#DIGEST_ROWS[@]}" -eq 0 ]]; then
   echo "No videos were successfully processed; nothing to post."
   exit 0
 fi
+
+# Make the playlist read oldest->newest rather than relying on where PeerTube
+# decided to put each element. DIGEST_ROWS is already oldest-first.
+declare -a ORDERED_IDS=()
+for row in "${DIGEST_ROWS[@]}"; do
+  ORDERED_IDS+=("$(printf '%s' "$row" | json_get "['id']")")
+done
+echo "Checking playlist order ..."
+pt_sort_playlist "${ORDERED_IDS[@]}" || true
 
 # --- Build the Ghost digest post body --------------------------------------
 COUNT="${#DIGEST_ROWS[@]}"
